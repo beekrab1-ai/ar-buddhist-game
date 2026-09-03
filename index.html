@@ -4,28 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AR พุทธประวัติวัดใจ (ป.4 - ป.6)</title>
-  <!-- p5.js Library -->
+  <!-- p5.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-  <!-- Google MediaPipe Tasks Vision (Bundle) -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+  <!-- Handsfree.js for Reliable Hand Tracking -->
+  <link rel="stylesheet" href="https://unpkg.com/handsfree@8.5.1/build/lib/assets/handsfree.css" />
+  <script src="https://unpkg.com/handsfree@8.5.1/build/lib/handsfree.js"></script>
   <style>
     body {
       margin: 0;
       padding: 0;
-      background-color: #1a1a1a;
+      background-color: #111;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      font-family: sans-serif;
+      font-family: 'Sarabun', sans-serif;
       overflow: hidden;
     }
     #canvas-container {
       position: relative;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      border-radius: 16px;
       overflow: hidden;
     }
+    /* ซ่อน Video Tag ของ Handsfree ไม่ให้บังหน้าจอ */
+    .handsfree-debugger { display: none !important; }
   </style>
 </head>
 <body>
