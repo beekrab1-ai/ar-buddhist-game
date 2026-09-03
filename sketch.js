@@ -1,0 +1,299 @@
+let video;
+let handLandmarker;
+let lastVideoTime = -1;
+let pointDirection = "NONE"; // LEFT, RIGHT, NONE
+let handX = 0;
+let handY = 0;
+
+// คลังคำถาม (วิชาพระพุทธศาสนา ป.4-ป.6)
+const questions = [
+  {
+    q: "วันประสูติ ตรัสรู้ และปรินิพพาน\nตรงกับวันใด?",
+    left: "วันวิสาขบูชา",
+    right: "วันอาสาฬหบูชา",
+    ans: "LEFT"
+  },
+  {
+    q: "วันที่มีพระรัตนตรัยครบ 3 ประการ\nเกิดขึ้นครั้งแรกในวันใด?",
+    left: "วันมาฆบูชา",
+    right: "วันอาสาฬหบูชา",
+    ans: "RIGHT"
+  },
+  {
+    q: "เหตุการณ์การแสดง 'โอวาทปาติโมกข์'\nตรงกับวันสำคัญใด?",
+    left: "วันมาฆบูชา",
+    right: "วันวิสาขบูชา",
+    ans: "LEFT"
+  },
+  {
+    q: "ปฐมเทศนาที่พระพุทธเจ้าทรงแสดง\nมีชื่อว่าอะไร?",
+    left: "ธัมมจักกัปปวัตนสูตร",
+    right: "มงคลสูตร 38",
+    ans: "LEFT"
+  },
+  {
+    q: "สถานที่ประสูติของพระพุทธเจ้า\nคือสถานที่ใด?",
+    left: "ลุมพินีวัน",
+    right: "พุทธคยา",
+    ans: "LEFT"
+  }
+];
+
+let currentQ = 0;
+let score = 0;
+let gameState = "START"; // START, PLAYING, FEEDBACK, GAMEOVER
+let feedbackMsg = "";
+let feedbackColor;
+let timer = 0;
+
+function setup() {
+  let canvas = createCanvas(640, 480);
+  canvas.parent('canvas-container');
+  
+  // เปิดกล้อง WebCam
+  video = createCapture(VIDEO);
+  video.size(640, 480);
+  video.hide();
+
+  // โหลด AI ตรวจจับมือ (MediaPipe Hand Landmarker)
+  initHandLandmarker();
+}
+
+async function initHandLandmarker() {
+  const vision = window.tasksVision;
+  const filesetResolver = await vision.FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+  );
+  handLandmarker = await vision.HandLandmarker.createFromOptions(filesetResolver, {
+    baseOptions: {
+      modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+      delegate: "GPU"
+    },
+    runningMode: "VIDEO",
+    numHands: 1
+  });
+}
+
+function draw() {
+  background(0);
+  
+  // แสดงภาพกล้องแบบส่องกระจก (Mirror)
+  push();
+  translate(width, 0);
+  scale(-1, 1);
+  image(video, 0, 0, width, height);
+  pop();
+
+  // ประมวลผลตรวจจับมือ
+  detectHand();
+
+  // สถานะเกม
+  if (gameState === "START") {
+    drawStartScreen();
+  } else if (gameState === "PLAYING") {
+    drawGameScreen();
+  } else if (gameState === "FEEDBACK") {
+    drawFeedbackScreen();
+  } else if (gameState === "GAMEOVER") {
+    drawGameOverScreen();
+  }
+
+  // วาดวงกลมติดตามปลายนิ้วชี้
+  if (pointDirection !== "NONE") {
+    fill(255, 215, 0, 200);
+    stroke(255);
+    strokeWeight(3);
+    circle(handX, handY, 30);
+  }
+
+  // แสดง Debug สถานะมือที่มุมซ้ายบน
+  drawDebugInfo();
+}
+
+function detectHand() {
+  if (handLandmarker && video.elt.readyState >= 2) {
+    if (video.elt.currentTime !== lastVideoTime) {
+      lastVideoTime = video.elt.currentTime;
+      let results = handLandmarker.detectForVideo(video.elt, performance.now());
+      
+      if (results.landmarks && results.landmarks.length > 0) {
+        let landmarks = results.landmarks[0];
+        
+        // จุดอ้างอิง: ปลายนิ้วชี้ (Index Finger Tip = 8)
+        let indexTip = landmarks[8];
+        
+        // แปลงพิกัดให้ตรงกับจอ p5.js แบบกระจกเงา
+        handX = width - (indexTip.x * width);
+        handY = indexTip.y * height;
+        
+        // ตรวจว่าปลายนิ้วชี้อยู่ฝั่งซ้ายหรือขวาของหน้าจอ
+        if (handX < width * 0.4) {
+          pointDirection = "LEFT";
+        } else if (handX > width * 0.6) {
+          pointDirection = "RIGHT";
+        } else {
+          pointDirection = "NONE";
+        }
+      } else {
+        pointDirection = "NONE";
+      }
+    }
+  }
+}
+
+function drawDebugInfo() {
+  fill(0, 200);
+  noStroke();
+  rect(10, 10, 200, 40, 5);
+  fill(255, 255, 0);
+  textSize(14);
+  textAlign(LEFT, CENTER);
+  text(`ทิศทางการชี้: ${pointDirection}`, 20, 30);
+}
+
+function drawStartScreen() {
+  fill(0, 0, 0, 180);
+  rect(0, 0, width, height);
+  
+  textAlign(CENTER, CENTER);
+  fill(255, 215, 0);
+  textSize(32);
+  textStyle(BOLD);
+  text("เกม AR พุทธประวัติวัดใจ", width / 2, height / 2 - 50);
+  
+  fill(255);
+  textSize(18);
+  textStyle(NORMAL);
+  text("ใช้นิ้วชี้ไปทาง ซ้าย หรือ ขวา เพื่อเลือกคำตอบ", width / 2, height / 2 + 10);
+  
+  fill(0, 255, 127);
+  rect(width / 2 - 140, height / 2 + 60, 280, 50, 10);
+  fill(0);
+  textSize(20);
+  textStyle(BOLD);
+  text("ชี้มือไปซ้ายหรือขวาเพื่อเริ่มเล่น", width / 2, height / 2 + 85);
+
+  if (pointDirection === "LEFT" || pointDirection === "RIGHT") {
+    score = 0;
+    currentQ = 0;
+    gameState = "PLAYING";
+  }
+}
+
+function drawGameScreen() {
+  let q = questions[currentQ];
+
+  // กล่องคำถามตรงกลาง
+  fill(30, 30, 30, 220);
+  stroke(255, 215, 0);
+  strokeWeight(3);
+  rect(60, 20, width - 120, 100, 15);
+
+  noStroke();
+  fill(255);
+  textSize(20);
+  textAlign(CENTER, CENTER);
+  text(`ข้อที่ ${currentQ + 1}/${questions.length}: ${q.q}`, width / 2, 70);
+
+  // ตัวเลือกซ้าย
+  drawOptionBox(30, 180, 250, 120, q.left, pointDirection === "LEFT");
+  
+  // ตัวเลือกขวา
+  drawOptionBox(width - 280, 180, 250, 120, q.right, pointDirection === "RIGHT");
+
+  // แสดงคะแนนด้านล่าง
+  fill(0, 0, 0, 150);
+  rect(0, height - 50, width, 50);
+  fill(255, 215, 0);
+  textSize(22);
+  textAlign(LEFT, CENTER);
+  text(` คะแนน: ${score}`, 20, height - 25);
+  
+  // ตรวจคำตอบเมื่อชี้มือ
+  if (pointDirection === "LEFT" || pointDirection === "RIGHT") {
+    checkAnswer(pointDirection);
+  }
+}
+
+function drawOptionBox(x, y, w, h, txt, isSelected) {
+  push();
+  if (isSelected) {
+    fill(255, 215, 0, 230);
+    stroke(255);
+    strokeWeight(4);
+  } else {
+    fill(0, 102, 204, 200);
+    stroke(255);
+    strokeWeight(2);
+  }
+  rect(x, y, w, h, 15);
+
+  fill(isSelected ? 0 : 255);
+  noStroke();
+  textSize(20);
+  textStyle(BOLD);
+  textAlign(CENTER, CENTER);
+  text(txt, x + w / 2, y + h / 2);
+  pop();
+}
+
+function checkAnswer(selected) {
+  let q = questions[currentQ];
+  if (selected === q.ans) {
+    score += 100;
+    feedbackMsg = "ถูกต้อง! 🎉";
+    feedbackColor = color(0, 200, 83);
+  } else {
+    score = max(0, score - 50);
+    feedbackMsg = "ยังไม่ถูกต้อง! ❌";
+    feedbackColor = color(229, 57, 53);
+  }
+  gameState = "FEEDBACK";
+  timer = millis();
+}
+
+function drawFeedbackScreen() {
+  fill(feedbackColor);
+  rect(0, 0, width, height);
+
+  fill(255);
+  textSize(40);
+  textAlign(CENTER, CENTER);
+  text(feedbackMsg, width / 2, height / 2);
+
+  if (millis() - timer > 1500) {
+    currentQ++;
+    if (currentQ >= questions.length) {
+      gameState = "GAMEOVER";
+    } else {
+      gameState = "PLAYING";
+    }
+  }
+}
+
+function drawGameOverScreen() {
+  fill(0, 0, 0, 220);
+  rect(0, 0, width, height);
+
+  textAlign(CENTER, CENTER);
+  fill(255, 215, 0);
+  textSize(36);
+  textStyle(BOLD);
+  text("จบการแข่งขัน!", width / 2, height / 2 - 60);
+
+  fill(255);
+  textSize(26);
+  text(`คะแนนรวมของคุณ: ${score} คะแนน`, width / 2, height / 2);
+
+  fill(0, 230, 118);
+  rect(width / 2 - 140, height / 2 + 60, 280, 50, 10);
+  fill(0);
+  textSize(18);
+  text("ชี้มือไปซ้ายหรือขวาเพื่อเล่นอีกครั้ง", width / 2, height / 2 + 85);
+
+  if (millis() - timer > 2000 && (pointDirection === "LEFT" || pointDirection === "RIGHT")) {
+    score = 0;
+    currentQ = 0;
+    gameState = "PLAYING";
+  }
+}
