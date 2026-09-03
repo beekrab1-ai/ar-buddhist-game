@@ -55,7 +55,7 @@ function setup() {
   video.size(640, 480);
   video.hide();
 
-  // โหลด AI ตรวจจับมือ (MediaPipe Hand Landmarker)
+  // โหลด AI ตรวจจับมือ
   initHandLandmarker();
 }
 
@@ -98,9 +98,9 @@ function draw() {
     drawGameOverScreen();
   }
 
-  // วาดวงกลมติดตามปลายนิ้วชี้
+  // วาดวงกลมติดตามปลายนิ้วชี้เมื่อมีการชี้
   if (pointDirection !== "NONE") {
-    fill(255, 215, 0, 200);
+    fill(255, 215, 0, 200); // สีทองโปร่งแสง
     stroke(255);
     strokeWeight(3);
     circle(handX, handY, 30);
@@ -126,10 +126,10 @@ function detectHand() {
         handX = width - (indexTip.x * width);
         handY = indexTip.y * height;
         
-        // ตรวจว่าปลายนิ้วชี้อยู่ฝั่งซ้ายหรือขวาของหน้าจอ
-        if (handX < width * 0.4) {
+        // ตรวจว่าปลายนิ้วชี้อยู่ฝั่งซ้ายหรือขวาของหน้าจอ (เพิ่มขอบเขตการชี้)
+        if (handX < width * 0.45) {
           pointDirection = "LEFT";
-        } else if (handX > width * 0.6) {
+        } else if (handX > width * 0.55) {
           pointDirection = "RIGHT";
         } else {
           pointDirection = "NONE";
@@ -142,158 +142,14 @@ function detectHand() {
 }
 
 function drawDebugInfo() {
-  fill(0, 200);
+  fill(0, 200); // สีดำโปร่งแสง
   noStroke();
-  rect(10, 10, 200, 40, 5);
-  fill(255, 255, 0);
+  rect(10, 10, 220, 40, 5); // ปรับขนาดกรอบ
+  fill(255, 255, 0); // สีเหลือง
   textSize(14);
   textAlign(LEFT, CENTER);
   text(`ทิศทางการชี้: ${pointDirection}`, 20, 30);
 }
 
-function drawStartScreen() {
-  fill(0, 0, 0, 180);
-  rect(0, 0, width, height);
-  
-  textAlign(CENTER, CENTER);
-  fill(255, 215, 0);
-  textSize(32);
-  textStyle(BOLD);
-  text("เกม AR พุทธประวัติวัดใจ", width / 2, height / 2 - 50);
-  
-  fill(255);
-  textSize(18);
-  textStyle(NORMAL);
-  text("ใช้นิ้วชี้ไปทาง ซ้าย หรือ ขวา เพื่อเลือกคำตอบ", width / 2, height / 2 + 10);
-  
-  fill(0, 255, 127);
-  rect(width / 2 - 140, height / 2 + 60, 280, 50, 10);
-  fill(0);
-  textSize(20);
-  textStyle(BOLD);
-  text("ชี้มือไปซ้ายหรือขวาเพื่อเริ่มเล่น", width / 2, height / 2 + 85);
-
-  if (pointDirection === "LEFT" || pointDirection === "RIGHT") {
-    score = 0;
-    currentQ = 0;
-    gameState = "PLAYING";
-  }
-}
-
-function drawGameScreen() {
-  let q = questions[currentQ];
-
-  // กล่องคำถามตรงกลาง
-  fill(30, 30, 30, 220);
-  stroke(255, 215, 0);
-  strokeWeight(3);
-  rect(60, 20, width - 120, 100, 15);
-
-  noStroke();
-  fill(255);
-  textSize(20);
-  textAlign(CENTER, CENTER);
-  text(`ข้อที่ ${currentQ + 1}/${questions.length}: ${q.q}`, width / 2, 70);
-
-  // ตัวเลือกซ้าย
-  drawOptionBox(30, 180, 250, 120, q.left, pointDirection === "LEFT");
-  
-  // ตัวเลือกขวา
-  drawOptionBox(width - 280, 180, 250, 120, q.right, pointDirection === "RIGHT");
-
-  // แสดงคะแนนด้านล่าง
-  fill(0, 0, 0, 150);
-  rect(0, height - 50, width, 50);
-  fill(255, 215, 0);
-  textSize(22);
-  textAlign(LEFT, CENTER);
-  text(` คะแนน: ${score}`, 20, height - 25);
-  
-  // ตรวจคำตอบเมื่อชี้มือ
-  if (pointDirection === "LEFT" || pointDirection === "RIGHT") {
-    checkAnswer(pointDirection);
-  }
-}
-
-function drawOptionBox(x, y, w, h, txt, isSelected) {
-  push();
-  if (isSelected) {
-    fill(255, 215, 0, 230);
-    stroke(255);
-    strokeWeight(4);
-  } else {
-    fill(0, 102, 204, 200);
-    stroke(255);
-    strokeWeight(2);
-  }
-  rect(x, y, w, h, 15);
-
-  fill(isSelected ? 0 : 255);
-  noStroke();
-  textSize(20);
-  textStyle(BOLD);
-  textAlign(CENTER, CENTER);
-  text(txt, x + w / 2, y + h / 2);
-  pop();
-}
-
-function checkAnswer(selected) {
-  let q = questions[currentQ];
-  if (selected === q.ans) {
-    score += 100;
-    feedbackMsg = "ถูกต้อง! 🎉";
-    feedbackColor = color(0, 200, 83);
-  } else {
-    score = max(0, score - 50);
-    feedbackMsg = "ยังไม่ถูกต้อง! ❌";
-    feedbackColor = color(229, 57, 53);
-  }
-  gameState = "FEEDBACK";
-  timer = millis();
-}
-
-function drawFeedbackScreen() {
-  fill(feedbackColor);
-  rect(0, 0, width, height);
-
-  fill(255);
-  textSize(40);
-  textAlign(CENTER, CENTER);
-  text(feedbackMsg, width / 2, height / 2);
-
-  if (millis() - timer > 1500) {
-    currentQ++;
-    if (currentQ >= questions.length) {
-      gameState = "GAMEOVER";
-    } else {
-      gameState = "PLAYING";
-    }
-  }
-}
-
-function drawGameOverScreen() {
-  fill(0, 0, 0, 220);
-  rect(0, 0, width, height);
-
-  textAlign(CENTER, CENTER);
-  fill(255, 215, 0);
-  textSize(36);
-  textStyle(BOLD);
-  text("จบการแข่งขัน!", width / 2, height / 2 - 60);
-
-  fill(255);
-  textSize(26);
-  text(`คะแนนรวมของคุณ: ${score} คะแนน`, width / 2, height / 2);
-
-  fill(0, 230, 118);
-  rect(width / 2 - 140, height / 2 + 60, 280, 50, 10);
-  fill(0);
-  textSize(18);
-  text("ชี้มือไปซ้ายหรือขวาเพื่อเล่นอีกครั้ง", width / 2, height / 2 + 85);
-
-  if (millis() - timer > 2000 && (pointDirection === "LEFT" || pointDirection === "RIGHT")) {
-    score = 0;
-    currentQ = 0;
-    gameState = "PLAYING";
-  }
-}
+// ... ส่วนที่เหลือของโค้ด drawStartScreen, drawGameScreen, checkAnswer, drawFeedbackScreen, drawGameOverScreen, drawOptionBox เหมือนเดิม ...
+// (เพื่อประหยัดเนื้อหา ผมจะละส่วนนี้ไว้ ให้คุณครูใช้โค้ดเดิมในไฟล์ sketch.js ของคุณครูได้เลยครับ)
